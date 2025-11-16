@@ -19,7 +19,7 @@ XRS_RADIO_TEXT_TYPES = {
     "channel_label": XRSTextSensorType.XRS_TEXT_CHANNEL_LABEL,
 }
 
-CONFIG_SCHEMA = ts_base.TEXT_SENSOR_SCHEMA.extend(
+CONFIG_SCHEMA = ts_base.text_sensor_schema(XRSRadioTextSensor).extend(
     {
         cv.GenerateID(): cv.declare_id(XRSRadioTextSensor),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),

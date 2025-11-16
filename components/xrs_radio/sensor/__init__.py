@@ -15,7 +15,7 @@ XRS_RADIO_SENSOR_TYPES = {
     "ptt_timer": XRSNumericSensorType.XRS_SENSOR_PTT_TIMER,
 }
 
-CONFIG_SCHEMA = sensor_base.SENSOR_SCHEMA.extend(
+CONFIG_SCHEMA = sensor_base.sensor_schema(XRSRadioSensor).extend(
     {
         cv.GenerateID(): cv.declare_id(XRSRadioSensor),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),

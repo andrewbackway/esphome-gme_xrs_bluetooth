@@ -17,7 +17,7 @@ XRS_RADIO_SWITCH_TYPES = {
     "silent_memory": XRSSwitchType.XRS_SWITCH_SILENT_MEMORY,
 }
 
-CONFIG_SCHEMA = switch_base.SWITCH_SCHEMA.extend(
+CONFIG_SCHEMA = switch_base.switch_schema(XRSRadioSwitch).extend(
     {
         cv.GenerateID(): cv.declare_id(XRSRadioSwitch),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),

@@ -52,7 +52,7 @@ All outgoing messages follow this format:
 - `COMMAND_LINE` is an ASCII string such as:
 
   ```text
-  AT_WGTLOC=HHMMSS,<latitude>,<longitude>
+  AT+WGTLOC=HHMMSS,<latitude>,<longitude>
   ```
 
 - The line terminator `\r\n` is required for the radio to recognize the end of a message.
@@ -94,10 +94,10 @@ These commands are sent automatically shortly after a connection is established.
 | Command   | Dir | Syntax   | Parameters | Notes |
 |----------|-----|----------|-----------|-------|
 | `ATE1`   | TX  | `ATE1`   | none      | Enables command echo on the radio. Sent once after connection. |
-| `AT_GMI` | TX  | `AT_GMI` | none      | Requests manufacturer information. |
-| `AT_GSN` | TX  | `AT_GSN` | none      | Requests device serial number. |
-| `AT_GMM` | TX  | `AT_GMM` | none      | Requests model identifier. |
-| `AT_GMR` | TX  | `AT_GMR` | none      | Requests firmware revision. |
+| `AT+GMI` | TX  | `AT+GMI` | none      | Requests manufacturer information. |
+| `AT+GSN` | TX  | `AT+GSN` | none      | Requests device serial number. |
+| `AT+GMM` | TX  | `AT+GMM` | none      | Requests model identifier. |
+| `AT+GMR` | TX  | `AT+GMR` | none      | Requests firmware revision. |
 
 The responses to these commands are textual lines, which are parsed elsewhere to populate device information within the client.
 
@@ -107,7 +107,7 @@ The responses to these commands are textual lines, which are parsed elsewhere to
 
 | Command      | Dir | Syntax        | Parameters | Notes |
 |-------------|-----|---------------|-----------|-------|
-| `AT_WGCHSQ` | TX  | `AT_WGCHSQ`   | none      | Requests channel/squelch information table from the radio. |
+| `AT+WGCHSQ` | TX  | `AT+WGCHSQ`   | none      | Requests channel/squelch information table from the radio. |
 
 - Responses to this command are parsed into an internal table that includes:
   - Channel identifiers.
@@ -121,7 +121,7 @@ The responses to these commands are textual lines, which are parsed elsewhere to
 
 | Command     | Dir | Syntax                                       | Parameters                                        | Notes |
 |------------|-----|----------------------------------------------|--------------------------------------------------|-------|
-| `AT_WGTLOC`| TX  | `AT_WGTLOC=HHMMSS,<latitude>,<longitude>`    | `HHMMSS` (UTC time), latitude, longitude         | Sends current GPS position to the radio. |
+| `AT+WGTLOC`| TX  | `AT+WGTLOC=HHMMSS,<latitude>,<longitude>`    | `HHMMSS` (UTC time), latitude, longitude         | Sends current GPS position to the radio. |
 
 **Details:**
 
@@ -134,7 +134,7 @@ The responses to these commands are textual lines, which are parsed elsewhere to
 **Example:**
 
 ```text
-AT_WGTLOC=104522,-33.8650,151.2094\r\n
+AT+WGTLOC=104522,-33.8650,151.2094\r\n
 ```
 
 ---
@@ -143,7 +143,7 @@ AT_WGTLOC=104522,-33.8650,151.2094\r\n
 
 | Command     | Dir | Syntax                            | Parameters                                      | Notes |
 |------------|-----|-----------------------------------|------------------------------------------------|-------|
-| `AT_WGTMSG`| TX  | `AT_WGTMSG="@username#status"`    | `username` + `status`, combined and quoted     | Sends a user status message to the radio. |
+| `AT+WGTMSG`| TX  | `AT+WGTMSG="@username#status"`    | `username` + `status`, combined and quoted     | Sends a user status message to the radio. |
 
 **Details:**
 
@@ -153,7 +153,7 @@ AT_WGTLOC=104522,-33.8650,151.2094\r\n
   @<username>#<status>
   ```
 
-- The payload is then wrapped in double quotes and appended after `AT_WGTMSG=`.
+- The payload is then wrapped in double quotes and appended after `AT+WGTMSG=`.
 - The username and status come from user‑configurable settings.
 - This command is sent:
   - When a connection becomes active.
@@ -162,7 +162,7 @@ AT_WGTLOC=104522,-33.8650,151.2094\r\n
 **Example:**
 
 ```text
-AT_WGTMSG="@Andrew#On the road"\r\n
+AT+WGTMSG="@Andrew#On the road"\r\n
 ```
 
 ---
@@ -232,7 +232,7 @@ Although exact text formats of incoming messages are not fully exposed in these 
 
 ### 5.2 Channel / ACMA Data
 
-- Responses to channel‑related commands (notably `AT_WGCHSQ`) are parsed into a table of:
+- Responses to channel‑related commands (notably `AT+WGCHSQ`) are parsed into a table of:
 
   - Channel IDs.
   - Frequencies.
@@ -273,8 +273,8 @@ From the radio’s point of view, connection state changes correspond to:
 
 - **On connect:**
   - An initial burst of handshake commands (identifier queries and channel info).
-  - A status message (`AT_WGTMSG`).
-  - Periodic `AT_WGTLOC` commands if location sharing is enabled.
+  - A status message (`AT+WGTMSG`).
+  - Periodic `AT+WGTLOC` commands if location sharing is enabled.
 - **During normal operation:**
   - Occasional configuration updates (`ATS109=...`).
   - Location messages and user status updates as user settings change.
@@ -287,11 +287,11 @@ From the radio’s point of view, connection state changes correspond to:
 
 ## 7. Timing & Throttling Summary
 
-- Location → `AT_WGTLOC`:
+- Location → `AT+WGTLOC`:
   - Not more frequent than roughly every 30 seconds.
 - Breadcrumb / map updates (internal to the client):
   - Only when the user has moved more than ~100 meters and at least ~30 seconds have elapsed since the last breadcrumb.
-- Handshake sequence (`ATE1`, `AT_GMI`, `AT_GSN`, `AT_GMM`, `AT_GMR`, `AT_WGCHSQ`):
+- Handshake sequence (`ATE1`, `AT+GMI`, `AT+GSN`, `AT+GMM`, `AT+GMR`, `AT+WGCHSQ`):
   - Commands are sent in quick succession during the first few seconds after a connection is established.
 - Reconnect discovery:
   - Bluetooth discovery is started on a repeating interval while in reconnect mode.
@@ -307,17 +307,17 @@ A typical session between client and radio follows this pattern:
 1. **Connect over Bluetooth RFCOMM.**
 2. **Handshake:**
    - `ATE1`
-   - `AT_GMI`
-   - `AT_GSN`
-   - `AT_GMM`
-   - `AT_GMR`
-   - `AT_WGCHSQ`
+   - `AT+GMI`
+   - `AT+GSN`
+   - `AT+GMM`
+   - `AT+GMR`
+   - `AT+WGCHSQ`
 3. **Initial status:**
-   - `AT_WGTMSG="@username#status"`
+   - `AT+WGTMSG="@username#status"`
 4. **Periodic operation (while connected):**
-   - Every ~30s (if allowed): `AT_WGTLOC=HHMMSS,lat,lon`
+   - Every ~30s (if allowed): `AT+WGTLOC=HHMMSS,lat,lon`
    - Occasionally: `ATS109=<int>` when configuration changes.
-   - Occasionally: `AT_WGTMSG="@username#status"` if user status changes.
+   - Occasionally: `AT+WGTMSG="@username#status"` if user status changes.
 5. **Phone call integration (if enabled):**
    - Call starts: `AT+WGACTM=0`, then `AT+WGACTM=2` every few seconds.
    - Call ends: `AT+WGACTM=1`.

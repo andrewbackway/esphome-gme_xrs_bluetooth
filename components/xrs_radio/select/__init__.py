@@ -13,7 +13,7 @@ XRS_RADIO_SELECT_TYPES = {
     "channel": XRSSelectType.XRS_SELECT_CHANNEL,
 }
 
-CONFIG_SCHEMA = select_base.SELECT_SCHEMA.extend(
+CONFIG_SCHEMA = select_base.select_schema(XRSRadioSelect).extend(
     {
         cv.GenerateID(): cv.declare_id(XRSRadioSelect),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),
