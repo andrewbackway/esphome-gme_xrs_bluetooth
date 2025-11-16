@@ -17,6 +17,10 @@ void XRSRadioSelect::dump_config() {
   LOG_SELECT("  ", "XRS Select", this);
 }
 
+void XRSRadioSelect::refresh_from_parent() {
+  this->update_options_();
+}
+
 void XRSRadioSelect::update_options_() {
   if (this->parent_ == nullptr)
     return;
