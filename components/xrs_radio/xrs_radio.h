@@ -158,6 +158,12 @@ class XRSRadioComponent : public Component {
   // Fill out channel options, e.g. ["Z1 / Ch 40: CH40", ...].
   void get_channel_options(std::vector<std::string> &out) const;
 
+  /// Set the current zone on the radio and cache state
+  void set_zone(uint8_t zone);
+
+  /// Set the current zone + channel on the radio and cache state
+  void set_channel(uint8_t zone, uint8_t channel);
+
   // Request a full channel/squelch table from the radio (AT_WGCHSQ).
   void request_channel_table();
 

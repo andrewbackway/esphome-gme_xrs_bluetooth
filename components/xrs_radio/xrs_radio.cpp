@@ -324,6 +324,34 @@ void XRSRadioComponent::set_target_zone_channel(uint8_t zone, uint8_t channel) {
   this->send_command_(buf);
 }
 
+namespace esphome {
+namespace xrs_radio {
+
+void XRSRadioComponent::set_zone(uint8_t zone) {
+  // Remember the requested zone locally
+  this->current_zone_ = zone;
+
+  // AT command: set working zone
+  // (If your spec uses a different command we can tweak this later.)
+  std::string cmd = str_sprintf("AT+WGCZ=%u", static_cast<unsigned>(zone));
+  this->send_command(cmd);
+}
+
+void XRSRadioComponent::set_channel(uint8_t zone, uint8_t channel) {
+  // Remember the requested zone + channel locally
+  this->current_zone_ = zone;
+  this->current_channel_ = channel;
+
+  // AT command: set working channel
+  // Adjust format if the XRS spec uses a different syntax.
+  std::string cmd = str_sprintf("AT+WGCH=%u,%u", static_cast<unsigned>(zone),
+                                static_cast<unsigned>(channel));
+  this->send_command(cmd);
+
+  // Optionally update the friendly label text_sensor immediately
+  this->publish_channel_label_();
+}
+
 void XRSRadioComponent::setup() {
   ESP_LOGI(TAG, "Setting up XRSRadioComponent");
   instance_ = this;
@@ -408,9 +436,14 @@ void XRSRadioComponent::init_bluetooth_() {
     return;
   }
 
-  ret = esp_spp_init(ESP_SPP_MODE_CB);
+  retesp_spp_cfg_t cfg = {
+      .mode = ESP_SPP_MODE_CB,
+      .enable_l2cap_ertm = false,
+      .tx_buffer_size = 0,
+  };
+  ret = esp_spp_enhanced_init(&cfg);
   if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "esp_spp_init failed: %d", ret);
+    ESP_LOGE(TAG, "esp_spp_enhanced_init failed: %d", ret);
     return;
   }
 
@@ -834,7 +867,7 @@ void XRSRadioComponent::handle_channel_table_line_(const std::string& line) {
   }
 
   for (auto& p : this->selects_) {
-    p.second->refresh_options();
+    p.second->refresh_from_parent();
   }
 }
 
@@ -893,7 +926,7 @@ void XRSRadioComponent::handle_line_(const std::string& line) {
   };
 
   if (starts_with("+GMI:")) {
-    this->manufacturer_ = str_trim_copy(line.substr(5));
+    this->manufacturer_ = esphome::str_trim_copy(line.substr(5));
     for (auto& p : this->text_sensors_) {
       if (p.first == XRS_TEXT_MANUFACTURER)
         p.second->publish_state(this->manufacturer_);
@@ -902,7 +935,7 @@ void XRSRadioComponent::handle_line_(const std::string& line) {
   }
 
   if (starts_with("+GMM:")) {
-    this->model_ = str_trim_copy(line.substr(5));
+    this->model_ = esphome::str_trim_copy(line.substr(5));
     for (auto& p : this->text_sensors_) {
       if (p.first == XRS_TEXT_MODEL) p.second->publish_state(this->model_);
     }
@@ -910,7 +943,7 @@ void XRSRadioComponent::handle_line_(const std::string& line) {
   }
 
   if (starts_with("+GMR:")) {
-    this->firmware_ = str_trim_copy(line.substr(5));
+    this->firmware_ = esphome::str_trim_copy(line.substr(5));
     for (auto& p : this->text_sensors_) {
       if (p.first == XRS_TEXT_FIRMWARE)
         p.second->publish_state(this->firmware_);
@@ -919,7 +952,7 @@ void XRSRadioComponent::handle_line_(const std::string& line) {
   }
 
   if (starts_with("+GSN:")) {
-    this->serial_ = str_trim_copy(line.substr(5));
+    this->serial_ = esphome::str_trim_copy(line.substr(5));
     for (auto& p : this->text_sensors_) {
       if (p.first == XRS_TEXT_SERIAL) p.second->publish_state(this->serial_);
     }
