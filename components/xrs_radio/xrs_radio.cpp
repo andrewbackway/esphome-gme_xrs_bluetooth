@@ -20,16 +20,14 @@ XRSRadioComponent* XRSRadioComponent::instance_ = nullptr;
 
 XRSRadioComponent::XRSRadioComponent() {}
 
-static std::string trim_copy(const std::string &s) {
+static std::string trim_copy(const std::string& s) {
   size_t start = 0;
   while (start < s.size() && isspace(static_cast<unsigned char>(s[start])))
     start++;
   size_t end = s.size();
-  while (end > start && isspace(static_cast<unsigned char>(s[end - 1])))
-    end--;
+  while (end > start && isspace(static_cast<unsigned char>(s[end - 1]))) end--;
   return s.substr(start, end - start);
 }
-
 
 void XRSRadioComponent::set_mac_address(const std::string& mac) {
   this->mac_address_ = mac;
@@ -335,9 +333,6 @@ void XRSRadioComponent::set_target_zone_channel(uint8_t zone, uint8_t channel) {
   this->send_command_(buf);
 }
 
-namespace esphome {
-namespace xrs_radio {
-
 void XRSRadioComponent::set_zone(uint8_t zone) {
   // Remember the requested zone locally
   this->current_zone_ = zone;
@@ -452,7 +447,7 @@ void XRSRadioComponent::init_bluetooth_() {
       .enable_l2cap_ertm = false,
       .tx_buffer_size = 0,
   };
-  esp_err_t ret = esp_spp_enhanced_init(&cfg);
+  ret = esp_spp_enhanced_init(&cfg);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "esp_spp_enhanced_init failed: %d", static_cast<int>(ret));
     return;
