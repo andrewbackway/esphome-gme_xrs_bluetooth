@@ -29,8 +29,49 @@ static std::string trim_copy(const std::string& s) {
   return s.substr(start, end - start);
 }
 
-void XRSRadioComponent::set_mac_address(const std::string& mac) {
-  this->mac_address_ = mac;
+// Helper: parse two hex chars into a byte, return -1 on error
+static int parse_hex_byte(const std::string &s, size_t pos) {
+  if (pos + 2 > s.size())
+    return -1;
+  char buf[3];
+  buf[0] = s[pos];
+  buf[1] = s[pos + 1];
+  buf[2] = '\0';
+  char *end = nullptr;
+  long v = std::strtoul(buf, &end, 16);
+  if (end != buf + 2 || v < 0 || v > 255)
+    return -1;
+  return static_cast<int>(v);
+}
+
+void XRSRadioComponent::set_mac_address(const std::string &mac) {
+  // Accept either "AA:BB:CC:DD:EE:FF" or "AABBCCDDEEFF"
+  std::string cleaned;
+  cleaned.reserve(12);
+  for (char c : mac) {
+    if (std::isxdigit(static_cast<unsigned char>(c))) {
+      cleaned.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+    }
+  }
+
+  if (cleaned.size() != 12) {
+    ESP_LOGW(TAG, "Invalid MAC address '%s' (normalized length %u, expected 12 hex chars)",
+             mac.c_str(), static_cast<unsigned>(cleaned.size()));
+    return;
+  }
+
+  for (int i = 0; i < 6; i++) {
+    int byte = parse_hex_byte(cleaned, i * 2);
+    if (byte < 0) {
+      ESP_LOGW(TAG, "Invalid MAC address '%s' (bad hex at index %d)", mac.c_str(), i);
+      return;
+    }
+    this->target_mac_[i] = static_cast<uint8_t>(byte);
+  }
+
+  ESP_LOGI(TAG, "XRS target MAC set to %02X:%02X:%02X:%02X:%02X:%02X",
+           this->target_mac_[0], this->target_mac_[1], this->target_mac_[2],
+           this->target_mac_[3], this->target_mac_[4], this->target_mac_[5]);
 }
 
 void XRSRadioComponent::set_location_sensors(sensor::Sensor* lat,

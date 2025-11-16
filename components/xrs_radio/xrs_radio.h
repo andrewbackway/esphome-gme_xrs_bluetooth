@@ -186,6 +186,8 @@ class XRSRadioComponent : public Component {
     std::string label;
   };
 
+  esp_bd_addr_t target_mac_{};
+
   // Initialize ESP32 Bluetooth Classic controller and SPP stack.
   void init_bluetooth_();
 

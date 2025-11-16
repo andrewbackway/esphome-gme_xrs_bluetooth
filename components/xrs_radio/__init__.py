@@ -41,7 +41,19 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    cg.add(var.set_mac_address(config[CONF_MAC_ADDRESS].as_hex))
+    # --- MAC address: turn MACAddress -> "AA:BB:CC:DD:EE:FF" string ---
+    mac_hex = config[CONF_MAC_ADDRESS].as_hex  # 48-bit int
+
+    parts = []
+    for i in range(6):
+        # Extract bytes from MSB to LSB
+        shift = (5 - i) * 8
+        byte = (mac_hex >> shift) & 0xFF
+        parts.append(f"{byte:02X}")
+
+    mac_str = ":".join(parts)
+    cg.add(var.set_mac_address(mac_str))
+
 
     lat_id = config.get(CONF_LATITUDE_SENSOR)
     lon_id = config.get(CONF_LONGITUDE_SENSOR)
