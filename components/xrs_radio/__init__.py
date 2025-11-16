@@ -41,7 +41,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    cg.add(var.set_mac_address(config[CONF_MAC_ADDRESS]))
+    cg.add(var.set_mac_address(config[CONF_MAC_ADDRESS].as_hex))
 
     lat_id = config.get(CONF_LATITUDE_SENSOR)
     lon_id = config.get(CONF_LONGITUDE_SENSOR)
