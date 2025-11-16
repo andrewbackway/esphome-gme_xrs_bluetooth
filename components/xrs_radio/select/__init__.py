@@ -14,7 +14,7 @@ XRS_RADIO_SELECT_TYPES = {
     "channel": XRSSelectType.XRS_SELECT_CHANNEL,
 }
 
-# New-style schema (2025.10+)
+# New-style schema (ESPHome 2025.10+)
 CONFIG_SCHEMA = select_base.select_schema(XRSRadioSelect).extend(
     {
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),
@@ -27,10 +27,11 @@ async def to_code(config):
     parent = await cg.get_variable(config[CONF_XRS_ID])
     type_enum = XRS_RADIO_SELECT_TYPES[config[CONF_TYPE]]
 
-    # Create the select entity from the schema
-    var = await select_base.new_select(config)
+    # new_select() in 2025.10 requires 'options' kwarg.
+    # We pass an empty list because options are provided dynamically
+    # from XRSRadioSelect::get_traits() and refresh_options().
+    var = await select_base.new_select(config, options=[])
 
-    # Wire it to the hub
     cg.add(var.set_parent(parent))
     cg.add(var.set_type(type_enum))
     cg.add(parent.register_select(type_enum, var))
