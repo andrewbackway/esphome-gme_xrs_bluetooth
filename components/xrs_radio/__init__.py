@@ -26,10 +26,14 @@ CONF_LATITUDE_SENSOR = "latitude_sensor"
 CONF_LONGITUDE_SENSOR = "longitude_sensor"
 CONF_LOCATION_INTERVAL = "location_interval"
 
+
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(XRSRadioComponent),
-        cv.Required(CONF_MAC_ADDRESS): cv.mac_address,
+
+        # MAC is now just a string in YAML, e.g. "34:81:F4:12:34:56"
+        cv.Required(CONF_MAC_ADDRESS): cv.string_strict,
+
         cv.Optional(CONF_LATITUDE_SENSOR): cv.use_id(sensor_comp.Sensor),
         cv.Optional(CONF_LONGITUDE_SENSOR): cv.use_id(sensor_comp.Sensor),
         cv.Optional(CONF_LOCATION_INTERVAL, default="60s"): cv.positive_time_period_milliseconds,
@@ -41,20 +45,11 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    # --- MAC address: turn MACAddress -> "AA:BB:CC:DD:EE:FF" string ---
-    mac_hex = config[CONF_MAC_ADDRESS].as_hex  # 48-bit int
-
-    parts = []
-    for i in range(6):
-        # Extract bytes from MSB to LSB
-        shift = (5 - i) * 8
-        byte = (mac_hex >> shift) & 0xFF
-        parts.append(f"{byte:02X}")
-
-    mac_str = ":".join(parts)
+    # --- MAC address: pass straight through as string to C++ ---
+    mac_str = config[CONF_MAC_ADDRESS]
     cg.add(var.set_mac_address(mac_str))
 
-
+    # --- Optional external location sensors for XRS location mode ---
     lat_id = config.get(CONF_LATITUDE_SENSOR)
     lon_id = config.get(CONF_LONGITUDE_SENSOR)
     if lat_id is not None and lon_id is not None:
@@ -62,4 +57,5 @@ async def to_code(config):
         lon = await cg.get_variable(lon_id)
         cg.add(var.set_location_sensors(lat, lon))
 
+    # --- Location update interval ---
     cg.add(var.set_location_interval(config[CONF_LOCATION_INTERVAL]))
