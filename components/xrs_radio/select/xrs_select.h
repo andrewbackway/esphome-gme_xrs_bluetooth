@@ -1,37 +1,33 @@
 #pragma once
 
-#include <vector>
-#include <string>
-
 #include "esphome/core/component.h"
+#include "esphome/core/defines.h"
+#include "esphome/core/log.h"
 #include "esphome/components/select/select.h"
+
 #include "../xrs_radio.h"
 
 namespace esphome {
 namespace xrs_radio {
 
-// Select entity for zone/channel backed by XRSRadioComponent.
 class XRSRadioSelect : public select::Select, public Component {
  public:
-  void set_parent(XRSRadioComponent *parent) { parent_ = parent; }
-  void set_type(XRSSelectType type) { type_ = type; }
+  void set_parent(XRSRadioComponent *parent) { this->parent_ = parent; }
+  void set_type(XRSSelectType type) { this->type_ = type; }
 
   void setup() override;
   void dump_config() override;
-
-  // Refresh internal option list from parent's channel table.
-  void refresh_options();
-
-  // Called when HA/UI selects a new option.
-  void control(const std::string &value) override;
-
-  // Expose traits with our dynamic options.
-  select::SelectTraits get_traits() override;
+  float get_setup_priority() const override { return setup_priority::DATA; }
 
  protected:
+  // Called when HA/user changes the selected option
+  void control(const std::string &value) override;
+
+  // Internal: refresh traits.options from the hub’s channel/zone table
+  void update_options_();
+
   XRSRadioComponent *parent_{nullptr};
-  XRSSelectType type_{XRS_SELECT_ZONE};
-  std::vector<std::string> options_;
+  XRSSelectType type_{XRSSelectType::XRS_SELECT_ZONE};
 };
 
 }  // namespace xrs_radio

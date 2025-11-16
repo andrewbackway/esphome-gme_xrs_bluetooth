@@ -1,25 +1,31 @@
 #include "xrs_radio.h"
-#include "at_parser.h"
 
-#include "sensor/xrs_sensor.h"
+#include "at_parser.h"
 #include "binary_sensor/xrs_binary_sensor.h"
-#include "text_sensor/xrs_text_sensor.h"
+#include "esphome/core/hal.h"
+#include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
 #include "number/xrs_number.h"
-#include "switch/xrs_switch.h"
 #include "select/xrs_select.h"
+#include "sensor/xrs_sensor.h"
+#include "switch/xrs_switch.h"
+#include "text_sensor/xrs_text_sensor.h"
 
 namespace esphome {
 namespace xrs_radio {
 
-static const char *const TAG = "xrs_radio";
+static const char* const TAG = "xrs_radio";
 
-XRSRadioComponent *XRSRadioComponent::instance_ = nullptr;
+XRSRadioComponent* XRSRadioComponent::instance_ = nullptr;
 
 XRSRadioComponent::XRSRadioComponent() {}
 
-void XRSRadioComponent::set_mac_address(const std::string &mac) { this->mac_address_ = mac; }
+void XRSRadioComponent::set_mac_address(const std::string& mac) {
+  this->mac_address_ = mac;
+}
 
-void XRSRadioComponent::set_location_sensors(sensor::Sensor *lat, sensor::Sensor *lon) {
+void XRSRadioComponent::set_location_sensors(sensor::Sensor* lat,
+                                             sensor::Sensor* lon) {
   this->latitude_sensor_ = lat;
   this->longitude_sensor_ = lon;
 }
@@ -28,7 +34,8 @@ void XRSRadioComponent::set_location_interval(uint32_t interval_ms) {
   this->location_interval_ms_ = interval_ms;
 }
 
-void XRSRadioComponent::register_numeric_sensor(XRSNumericSensorType type, XRSRadioSensor *s) {
+void XRSRadioComponent::register_numeric_sensor(XRSNumericSensorType type,
+                                                XRSRadioSensor* s) {
   this->numeric_sensors_.push_back({type, s});
   switch (type) {
     case XRS_SENSOR_CHANNEL:
@@ -46,7 +53,8 @@ void XRSRadioComponent::register_numeric_sensor(XRSNumericSensorType type, XRSRa
   }
 }
 
-void XRSRadioComponent::register_binary_sensor(XRSBinarySensorType type, XRSRadioBinarySensor *s) {
+void XRSRadioComponent::register_binary_sensor(XRSBinarySensorType type,
+                                               XRSRadioBinarySensor* s) {
   this->binary_sensors_.push_back({type, s});
   switch (type) {
     case XRS_BIN_CONNECTED:
@@ -79,7 +87,8 @@ void XRSRadioComponent::register_binary_sensor(XRSBinarySensorType type, XRSRadi
   }
 }
 
-void XRSRadioComponent::register_text_sensor(XRSTextSensorType type, XRSRadioTextSensor *s) {
+void XRSRadioComponent::register_text_sensor(XRSTextSensorType type,
+                                             XRSRadioTextSensor* s) {
   this->text_sensors_.push_back({type, s});
   switch (type) {
     case XRS_TEXT_MANUFACTURER:
@@ -121,8 +130,7 @@ void XRSRadioComponent::register_text_sensor(XRSTextSensorType type, XRSRadioTex
           txt = "";
           break;
       }
-      if (!txt.empty())
-        s->publish_state(txt);
+      if (!txt.empty()) s->publish_state(txt);
       break;
     }
     case XRS_TEXT_PTT_STATE: {
@@ -143,13 +151,13 @@ void XRSRadioComponent::register_text_sensor(XRSTextSensorType type, XRSRadioTex
   }
 }
 
-void XRSRadioComponent::register_number(XRSNumberType type, XRSRadioNumber *n) {
+void XRSRadioComponent::register_number(XRSNumberType type, XRSRadioNumber* n) {
   this->numbers_.push_back({type, n});
-  if (type == XRS_NUMBER_VOLUME)
-    n->publish_state(this->current_volume_);
+  if (type == XRS_NUMBER_VOLUME) n->publish_state(this->current_volume_);
 }
 
-void XRSRadioComponent::register_switch(XRSSwitchType type, XRSRadioSwitch *sw) {
+void XRSRadioComponent::register_switch(XRSSwitchType type,
+                                        XRSRadioSwitch* sw) {
   this->switches_.push_back({type, sw});
   switch (type) {
     case XRS_SWITCH_LOCATION_MODE:
@@ -173,16 +181,15 @@ void XRSRadioComponent::register_switch(XRSSwitchType type, XRSRadioSwitch *sw) 
   }
 }
 
-void XRSRadioComponent::register_select(XRSSelectType type, XRSRadioSelect *sel) {
+void XRSRadioComponent::register_select(XRSSelectType type,
+                                        XRSRadioSelect* sel) {
   this->selects_.push_back({type, sel});
 }
 
 void XRSRadioComponent::set_volume(float volume) {
   int vol = static_cast<int>(volume + 0.5f);
-  if (vol < 0)
-    vol = 0;
-  if (vol > 31)
-    vol = 31;
+  if (vol < 0) vol = 0;
+  if (vol > 31) vol = 31;
 
   this->current_volume_ = vol;
 
@@ -190,11 +197,11 @@ void XRSRadioComponent::set_volume(float volume) {
   snprintf(buf, sizeof(buf), "AT+WGAV=%d", vol);
   this->send_command_(buf);
 
-  for (auto &p : this->numeric_sensors_) {
+  for (auto& p : this->numeric_sensors_) {
     if (p.first == XRS_SENSOR_VOLUME)
       p.second->publish_state(this->current_volume_);
   }
-  for (auto &p : this->numbers_) {
+  for (auto& p : this->numbers_) {
     if (p.first == XRS_NUMBER_VOLUME)
       p.second->publish_state(this->current_volume_);
   }
@@ -203,7 +210,7 @@ void XRSRadioComponent::set_volume(float volume) {
 void XRSRadioComponent::set_location_mode(bool enabled) {
   this->location_mode_ = enabled;
   ESP_LOGI(TAG, "Location mode %s", enabled ? "enabled" : "disabled");
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_LOCATION_MODE)
       p.second->publish_state(this->location_mode_);
   }
@@ -215,13 +222,11 @@ void XRSRadioComponent::set_scan_enabled(bool enabled) {
   snprintf(buf, sizeof(buf), "AT+WGSCAN=%d", enabled ? 1 : 0);
   this->send_command_(buf);
 
-  for (auto &p : this->binary_sensors_) {
-    if (p.first == XRS_BIN_SCANNING)
-      p.second->publish_state(this->scanning_);
+  for (auto& p : this->binary_sensors_) {
+    if (p.first == XRS_BIN_SCANNING) p.second->publish_state(this->scanning_);
   }
-  for (auto &p : this->switches_) {
-    if (p.first == XRS_SWITCH_SCAN)
-      p.second->publish_state(this->scanning_);
+  for (auto& p : this->switches_) {
+    if (p.first == XRS_SWITCH_SCAN) p.second->publish_state(this->scanning_);
   }
 }
 
@@ -231,11 +236,11 @@ void XRSRadioComponent::set_duplex_enabled(bool enabled) {
   snprintf(buf, sizeof(buf), "AT+WGDUP=%d", enabled ? 1 : 0);
   this->send_command_(buf);
 
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_DUPLEX_ENABLED)
       p.second->publish_state(this->duplex_enabled_);
   }
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_DUPLEX)
       p.second->publish_state(this->duplex_enabled_);
   }
@@ -247,11 +252,11 @@ void XRSRadioComponent::set_quiet_mode(bool enabled) {
   snprintf(buf, sizeof(buf), "AT+WGSSQ=%d", enabled ? 1 : 0);
   this->send_command_(buf);
 
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_QUIET_MODE)
       p.second->publish_state(this->quiet_mode_);
   }
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_QUIET_MODE)
       p.second->publish_state(this->quiet_mode_);
   }
@@ -263,11 +268,11 @@ void XRSRadioComponent::set_quiet_memory(bool enabled) {
   snprintf(buf, sizeof(buf), "AT+WGSQM=%d", enabled ? 1 : 0);
   this->send_command_(buf);
 
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_QUIET_MEMORY)
       p.second->publish_state(this->quiet_memory_);
   }
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_QUIET_MEMORY)
       p.second->publish_state(this->quiet_memory_);
   }
@@ -279,11 +284,11 @@ void XRSRadioComponent::set_silent_memory(bool enabled) {
   snprintf(buf, sizeof(buf), "AT+WGCSM=%d", enabled ? 1 : 0);
   this->send_command_(buf);
 
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_SILENT_MEMORY)
       p.second->publish_state(this->silent_memory_);
   }
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_SILENT_MEMORY)
       p.second->publish_state(this->silent_memory_);
   }
@@ -326,10 +331,10 @@ void XRSRadioComponent::setup() {
 }
 
 void XRSRadioComponent::loop() {
-  const uint32_t now = millis();
+  const uint32_t now = esphome::millis();
 
-  if (this->bt_initialized_ && this->spp_ready_ && !this->connected_ && !this->connecting_ &&
-      !this->mac_address_.empty()) {
+  if (this->bt_initialized_ && this->spp_ready_ && !this->connected_ &&
+      !this->connecting_ && !this->mac_address_.empty()) {
     if (this->last_reconnect_attempt_ == 0 ||
         (now - this->last_reconnect_attempt_) > this->reconnect_delay_ms_) {
       this->last_reconnect_attempt_ = now;
@@ -341,9 +346,10 @@ void XRSRadioComponent::loop() {
     }
   }
 
-  if (this->connected_ && this->location_mode_ && this->latitude_sensor_ != nullptr &&
-      this->longitude_sensor_ != nullptr) {
-    if (this->latitude_sensor_->has_state() && this->longitude_sensor_->has_state()) {
+  if (this->connected_ && this->location_mode_ &&
+      this->latitude_sensor_ != nullptr && this->longitude_sensor_ != nullptr) {
+    if (this->latitude_sensor_->has_state() &&
+        this->longitude_sensor_->has_state()) {
       const float lat = this->latitude_sensor_->state;
       const float lon = this->longitude_sensor_->state;
       if (!std::isnan(lat) && !std::isnan(lon)) {
@@ -367,8 +373,7 @@ void XRSRadioComponent::dump_config() {
 }
 
 void XRSRadioComponent::init_bluetooth_() {
-  if (this->bt_initialized_)
-    return;
+  if (this->bt_initialized_) return;
 
   esp_err_t ret;
 
@@ -419,9 +424,10 @@ bool XRSRadioComponent::parse_mac_address_(esp_bd_addr_t out) {
     return false;
   }
   int values[6];
-  if (sscanf(this->mac_address_.c_str(), "%x:%x:%x:%x:%x:%x",
-             &values[0], &values[1], &values[2], &values[3], &values[4], &values[5]) != 6) {
-    ESP_LOGE(TAG, "Failed to parse MAC address '%s'", this->mac_address_.c_str());
+  if (sscanf(this->mac_address_.c_str(), "%x:%x:%x:%x:%x:%x", &values[0],
+             &values[1], &values[2], &values[3], &values[4], &values[5]) != 6) {
+    ESP_LOGE(TAG, "Failed to parse MAC address '%s'",
+             this->mac_address_.c_str());
     return false;
   }
   for (int i = 0; i < 6; i++) {
@@ -441,11 +447,11 @@ void XRSRadioComponent::start_connection_() {
   }
 
   esp_bd_addr_t addr;
-  if (!this->parse_mac_address_(addr))
-    return;
+  if (!this->parse_mac_address_(addr)) return;
 
   ESP_LOGI(TAG, "Connecting to XRS radio at %s", this->mac_address_.c_str());
-  esp_err_t ret = esp_spp_connect(ESP_SPP_SEC_NONE, ESP_SPP_ROLE_MASTER, 0, addr);
+  esp_err_t ret =
+      esp_spp_connect(ESP_SPP_SEC_NONE, ESP_SPP_ROLE_MASTER, 0, addr);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "esp_spp_connect failed: %d", ret);
     return;
@@ -459,7 +465,7 @@ void XRSRadioComponent::close_connection_() {
   }
 }
 
-void XRSRadioComponent::send_command_(const std::string &cmd) {
+void XRSRadioComponent::send_command_(const std::string& cmd) {
   if (!this->connected_ || this->spp_handle_ == 0) {
     ESP_LOGW(TAG, "Cannot send command, not connected: '%s'", cmd.c_str());
     return;
@@ -467,11 +473,12 @@ void XRSRadioComponent::send_command_(const std::string &cmd) {
   std::string line = cmd;
   line += "\r\n";
   ESP_LOGD(TAG, "TX: %s", cmd.c_str());
-  esp_err_t ret =
-      esp_spp_write(this->spp_handle_, line.size(),
-                    reinterpret_cast<const uint8_t *>(line.c_str()));
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "esp_spp_write failed: %d", ret);
+  auto* data =
+      const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(line.data()));
+  esp_err_t err =
+      esp_spp_write(this->spp_handle_, static_cast<int>(line.size()), data);
+  if (err != ESP_OK) {
+    ESP_LOGW(TAG, "esp_spp_write failed: %d", static_cast<int>(err));
   }
 }
 
@@ -489,13 +496,13 @@ void XRSRadioComponent::send_handshake_commands_() {
 void XRSRadioComponent::send_location_update_() {
   if (this->latitude_sensor_ == nullptr || this->longitude_sensor_ == nullptr)
     return;
-  if (!this->latitude_sensor_->has_state() || !this->longitude_sensor_->has_state())
+  if (!this->latitude_sensor_->has_state() ||
+      !this->longitude_sensor_->has_state())
     return;
 
   const float lat = this->latitude_sensor_->state;
   const float lon = this->longitude_sensor_->state;
-  if (std::isnan(lat) || std::isnan(lon))
-    return;
+  if (std::isnan(lat) || std::isnan(lon)) return;
 
   char buf[128];
   snprintf(buf, sizeof(buf), "AT+WGTLOC=000000,%.6f,%.6f", lat, lon);
@@ -503,14 +510,13 @@ void XRSRadioComponent::send_location_update_() {
 }
 
 void XRSRadioComponent::publish_connection_state_() {
-  for (auto &p : this->binary_sensors_) {
-    if (p.first == XRS_BIN_CONNECTED)
-      p.second->publish_state(this->connected_);
+  for (auto& p : this->binary_sensors_) {
+    if (p.first == XRS_BIN_CONNECTED) p.second->publish_state(this->connected_);
   }
 }
 
 void XRSRadioComponent::publish_all_state_() {
-  for (auto &p : this->numeric_sensors_) {
+  for (auto& p : this->numeric_sensors_) {
     switch (p.first) {
       case XRS_SENSOR_CHANNEL:
         p.second->publish_state(this->current_channel_);
@@ -527,12 +533,12 @@ void XRSRadioComponent::publish_all_state_() {
     }
   }
 
-  for (auto &p : this->numbers_) {
+  for (auto& p : this->numbers_) {
     if (p.first == XRS_NUMBER_VOLUME)
       p.second->publish_state(this->current_volume_);
   }
 
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     switch (p.first) {
       case XRS_BIN_CONNECTED:
         p.second->publish_state(this->connected_);
@@ -564,7 +570,7 @@ void XRSRadioComponent::publish_all_state_() {
     }
   }
 
-  for (auto &p : this->text_sensors_) {
+  for (auto& p : this->text_sensors_) {
     switch (p.first) {
       case XRS_TEXT_MANUFACTURER:
         p.second->publish_state(this->manufacturer_);
@@ -602,8 +608,7 @@ void XRSRadioComponent::publish_all_state_() {
             txt = "Low battery";
             break;
         }
-        if (!txt.empty())
-          p.second->publish_state(txt);
+        if (!txt.empty()) p.second->publish_state(txt);
         break;
       }
       case XRS_TEXT_PTT_STATE: {
@@ -630,17 +635,17 @@ void XRSRadioComponent::handle_ptt_notification_(int state, int timer) {
   this->ptt_data_ = (state == 2);
   this->ptt_timer_ = (state == 2 && timer > 0) ? timer : 0;
 
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_PTT_ACTIVE)
       p.second->publish_state(this->ptt_active_);
     else if (p.first == XRS_BIN_PTT_DATA)
       p.second->publish_state(this->ptt_data_);
   }
-  for (auto &p : this->numeric_sensors_) {
+  for (auto& p : this->numeric_sensors_) {
     if (p.first == XRS_SENSOR_PTT_TIMER)
       p.second->publish_state(this->ptt_timer_);
   }
-  for (auto &p : this->text_sensors_) {
+  for (auto& p : this->text_sensors_) {
     if (p.first == XRS_TEXT_PTT_STATE) {
       std::string txt;
       if (!this->ptt_active_) {
@@ -659,11 +664,10 @@ void XRSRadioComponent::handle_power_notification_(int state) {
   this->power_state_ = state;
   this->power_low_ = (state == 5);
 
-  for (auto &p : this->binary_sensors_) {
-    if (p.first == XRS_BIN_POWER_LOW)
-      p.second->publish_state(this->power_low_);
+  for (auto& p : this->binary_sensors_) {
+    if (p.first == XRS_BIN_POWER_LOW) p.second->publish_state(this->power_low_);
   }
-  for (auto &p : this->text_sensors_) {
+  for (auto& p : this->text_sensors_) {
     if (p.first == XRS_TEXT_POWER_STATE) {
       std::string txt;
       switch (state) {
@@ -686,31 +690,28 @@ void XRSRadioComponent::handle_power_notification_(int state) {
           txt = "Low battery";
           break;
       }
-      if (!txt.empty())
-        p.second->publish_state(txt);
+      if (!txt.empty()) p.second->publish_state(txt);
     }
   }
 }
 
 void XRSRadioComponent::handle_scan_notification_(int enabled) {
   this->scanning_ = (enabled != 0);
-  for (auto &p : this->binary_sensors_) {
-    if (p.first == XRS_BIN_SCANNING)
-      p.second->publish_state(this->scanning_);
+  for (auto& p : this->binary_sensors_) {
+    if (p.first == XRS_BIN_SCANNING) p.second->publish_state(this->scanning_);
   }
-  for (auto &p : this->switches_) {
-    if (p.first == XRS_SWITCH_SCAN)
-      p.second->publish_state(this->scanning_);
+  for (auto& p : this->switches_) {
+    if (p.first == XRS_SWITCH_SCAN) p.second->publish_state(this->scanning_);
   }
 }
 
 void XRSRadioComponent::handle_duplex_notification_(int enabled) {
   this->duplex_enabled_ = (enabled != 0);
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_DUPLEX_ENABLED)
       p.second->publish_state(this->duplex_enabled_);
   }
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_DUPLEX)
       p.second->publish_state(this->duplex_enabled_);
   }
@@ -718,11 +719,11 @@ void XRSRadioComponent::handle_duplex_notification_(int enabled) {
 
 void XRSRadioComponent::handle_silent_memory_notification_(int enabled) {
   this->silent_memory_ = (enabled != 0);
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_SILENT_MEMORY)
       p.second->publish_state(this->silent_memory_);
   }
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_SILENT_MEMORY)
       p.second->publish_state(this->silent_memory_);
   }
@@ -730,11 +731,11 @@ void XRSRadioComponent::handle_silent_memory_notification_(int enabled) {
 
 void XRSRadioComponent::handle_quiet_memory_notification_(int enabled) {
   this->quiet_memory_ = (enabled != 0);
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_QUIET_MEMORY)
       p.second->publish_state(this->quiet_memory_);
   }
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_QUIET_MEMORY)
       p.second->publish_state(this->quiet_memory_);
   }
@@ -742,11 +743,11 @@ void XRSRadioComponent::handle_quiet_memory_notification_(int enabled) {
 
 void XRSRadioComponent::handle_quiet_mode_notification_(int enabled) {
   this->quiet_mode_ = (enabled != 0);
-  for (auto &p : this->binary_sensors_) {
+  for (auto& p : this->binary_sensors_) {
     if (p.first == XRS_BIN_QUIET_MODE)
       p.second->publish_state(this->quiet_mode_);
   }
-  for (auto &p : this->switches_) {
+  for (auto& p : this->switches_) {
     if (p.first == XRS_SWITCH_QUIET_MODE)
       p.second->publish_state(this->quiet_mode_);
   }
@@ -761,10 +762,10 @@ void XRSRadioComponent::request_channel_table() {
   this->send_command_("AT_WGCHSQ");
 }
 
-std::string XRSRadioComponent::get_channel_label_(uint8_t zone, uint8_t channel) const {
-  for (const auto &entry : this->channel_table_) {
-    if (entry.zone == zone && entry.channel == channel)
-      return entry.label;
+std::string XRSRadioComponent::get_channel_label_(uint8_t zone,
+                                                  uint8_t channel) const {
+  for (const auto& entry : this->channel_table_) {
+    if (entry.zone == zone && entry.channel == channel) return entry.label;
   }
   return "";
 }
@@ -774,22 +775,20 @@ void XRSRadioComponent::publish_channel_label_() {
       this->get_channel_label_(static_cast<uint8_t>(this->current_zone_),
                                static_cast<uint8_t>(this->current_channel_));
   if (label.empty()) {
-    label = string_sprintf("Z%u / Ch %u", this->current_zone_, this->current_channel_);
+    label =
+        str_sprintf("Z%u / Ch %u", this->current_zone_, this->current_channel_);
   }
-  for (auto &p : this->text_sensors_) {
-    if (p.first == XRS_TEXT_CHANNEL_LABEL)
-      p.second->publish_state(label);
+  for (auto& p : this->text_sensors_) {
+    if (p.first == XRS_TEXT_CHANNEL_LABEL) p.second->publish_state(label);
   }
 }
 
-void XRSRadioComponent::handle_channel_table_line_(const std::string &line) {
+void XRSRadioComponent::handle_channel_table_line_(const std::string& line) {
   std::string payload = ATParser::extract_payload(line, "+WGCHSQ:");
-  if (payload.empty())
-    return;
+  if (payload.empty()) return;
 
   auto parts = ATParser::split_args(payload);
-  if (parts.size() < 2)
-    return;
+  if (parts.size() < 2) return;
 
   int zone = atoi(parts[0].c_str());
   int ch = atoi(parts[1].c_str());
@@ -804,10 +803,8 @@ void XRSRadioComponent::handle_channel_table_line_(const std::string &line) {
   std::string label;
   if (!parts.empty()) {
     label = parts.back();
-    if (!label.empty() && label.front() == '\"')
-      label.erase(0, 1);
-    if (!label.empty() && label.back() == '\"')
-      label.pop_back();
+    if (!label.empty() && label.front() == '\"') label.erase(0, 1);
+    if (!label.empty() && label.back() == '\"') label.pop_back();
     while (!label.empty() && (label.front() == ' ' || label.front() == '\t'))
       label.erase(label.begin());
     while (!label.empty() && (label.back() == ' ' || label.back() == '\t'))
@@ -822,83 +819,82 @@ void XRSRadioComponent::handle_channel_table_line_(const std::string &line) {
   info.label = label;
 
   bool updated = false;
-  for (auto &entry : this->channel_table_) {
+  for (auto& entry : this->channel_table_) {
     if (entry.zone == info.zone && entry.channel == info.channel) {
       entry = info;
       updated = true;
       break;
     }
   }
-  if (!updated)
-    this->channel_table_.push_back(info);
+  if (!updated) this->channel_table_.push_back(info);
 
-  if (info.zone == this->current_zone_ && info.channel == this->current_channel_) {
+  if (info.zone == this->current_zone_ &&
+      info.channel == this->current_channel_) {
     this->publish_channel_label_();
   }
 
-  for (auto &p : this->selects_) {
+  for (auto& p : this->selects_) {
     p.second->refresh_options();
   }
 }
 
-void XRSRadioComponent::get_zone_options(std::vector<std::string> &out) const {
+void XRSRadioComponent::get_zone_options(std::vector<std::string>& out) const {
   out.clear();
   std::vector<uint8_t> zones;
-  for (const auto &c : this->channel_table_) {
+  for (const auto& c : this->channel_table_) {
     if (std::find(zones.begin(), zones.end(), c.zone) == zones.end())
       zones.push_back(c.zone);
   }
   if (zones.empty()) {
-    for (uint8_t z = 1; z <= 8; z++)
-      zones.push_back(z);
+    for (uint8_t z = 1; z <= 8; z++) zones.push_back(z);
   }
   std::sort(zones.begin(), zones.end());
   for (auto z : zones) {
-    out.push_back(string_sprintf("Zone %u", static_cast<unsigned>(z)));
+    out.push_back(str_sprintf("Zone %u", static_cast<unsigned>(z)));
   }
 }
 
-void XRSRadioComponent::get_channel_options(std::vector<std::string> &out) const {
+void XRSRadioComponent::get_channel_options(
+    std::vector<std::string>& out) const {
   out.clear();
   if (this->channel_table_.empty()) {
     for (uint8_t z = 1; z <= 8; z++) {
       for (uint8_t ch = 1; ch <= 80; ch++) {
-        out.push_back(string_sprintf("Z%u / Ch %u", z, ch));
+        out.push_back(str_sprintf("Z%u / Ch %u", z, ch));
       }
     }
     return;
   }
 
   std::vector<ChannelInfo> sorted = this->channel_table_;
-  std::sort(sorted.begin(), sorted.end(), [](const ChannelInfo &a, const ChannelInfo &b) {
-    if (a.zone != b.zone)
-      return a.zone < b.zone;
-    return a.channel < b.channel;
-  });
+  std::sort(sorted.begin(), sorted.end(),
+            [](const ChannelInfo& a, const ChannelInfo& b) {
+              if (a.zone != b.zone) return a.zone < b.zone;
+              return a.channel < b.channel;
+            });
 
-  for (const auto &ci : sorted) {
+  for (const auto& ci : sorted) {
     if (!ci.label.empty()) {
-      out.push_back(
-          string_sprintf("Z%u / Ch %u: %s", ci.zone, ci.channel, ci.label.c_str()));
+      out.push_back(str_sprintf("Z%u / Ch %u: %s", ci.zone, ci.channel,
+                                ci.label.c_str()));
     } else {
-      out.push_back(string_sprintf("Z%u / Ch %u", ci.zone, ci.channel));
+      out.push_back(str_sprintf("Z%u / Ch %u", ci.zone, ci.channel));
     }
   }
 }
 
-void XRSRadioComponent::handle_line_(const std::string &line) {
+void XRSRadioComponent::handle_line_(const std::string& line) {
   ESP_LOGD(TAG, "RX: %s", line.c_str());
-  if (line == "OK" || line == "ERROR")
-    return;
+  if (line == "OK" || line == "ERROR") return;
 
-  auto starts_with = [&](const char *prefix) -> bool {
+  auto starts_with = [&](const char* prefix) -> bool {
     size_t len = strlen(prefix);
     return line.size() >= len && line.compare(0, len, prefix) == 0;
   };
 
   if (starts_with("+GMI:")) {
     this->manufacturer_ = str_trim_copy(line.substr(5));
-    for (auto &p : this->text_sensors_) {
+    for (auto& p : this->text_sensors_) {
       if (p.first == XRS_TEXT_MANUFACTURER)
         p.second->publish_state(this->manufacturer_);
     }
@@ -907,16 +903,15 @@ void XRSRadioComponent::handle_line_(const std::string &line) {
 
   if (starts_with("+GMM:")) {
     this->model_ = str_trim_copy(line.substr(5));
-    for (auto &p : this->text_sensors_) {
-      if (p.first == XRS_TEXT_MODEL)
-        p.second->publish_state(this->model_);
+    for (auto& p : this->text_sensors_) {
+      if (p.first == XRS_TEXT_MODEL) p.second->publish_state(this->model_);
     }
     return;
   }
 
   if (starts_with("+GMR:")) {
     this->firmware_ = str_trim_copy(line.substr(5));
-    for (auto &p : this->text_sensors_) {
+    for (auto& p : this->text_sensors_) {
       if (p.first == XRS_TEXT_FIRMWARE)
         p.second->publish_state(this->firmware_);
     }
@@ -925,25 +920,22 @@ void XRSRadioComponent::handle_line_(const std::string &line) {
 
   if (starts_with("+GSN:")) {
     this->serial_ = str_trim_copy(line.substr(5));
-    for (auto &p : this->text_sensors_) {
-      if (p.first == XRS_TEXT_SERIAL)
-        p.second->publish_state(this->serial_);
+    for (auto& p : this->text_sensors_) {
+      if (p.first == XRS_TEXT_SERIAL) p.second->publish_state(this->serial_);
     }
     return;
   }
 
   if (starts_with("+WGAV:")) {
     int v = atoi(line.c_str() + 7);
-    if (v < 0)
-      v = 0;
-    if (v > 31)
-      v = 31;
+    if (v < 0) v = 0;
+    if (v > 31) v = 31;
     this->current_volume_ = v;
-    for (auto &p : this->numeric_sensors_) {
+    for (auto& p : this->numeric_sensors_) {
       if (p.first == XRS_SENSOR_VOLUME)
         p.second->publish_state(this->current_volume_);
     }
-    for (auto &p : this->numbers_) {
+    for (auto& p : this->numbers_) {
       if (p.first == XRS_NUMBER_VOLUME)
         p.second->publish_state(this->current_volume_);
     }
@@ -956,7 +948,7 @@ void XRSRadioComponent::handle_line_(const std::string &line) {
     if (sscanf(line.c_str(), "+WGCHS: %d,%d", &zone, &ch) == 2) {
       this->current_zone_ = zone;
       this->current_channel_ = ch;
-      for (auto &p : this->numeric_sensors_) {
+      for (auto& p : this->numeric_sensors_) {
         if (p.first == XRS_SENSOR_ZONE)
           p.second->publish_state(this->current_zone_);
         else if (p.first == XRS_SENSOR_CHANNEL)
@@ -971,7 +963,7 @@ void XRSRadioComponent::handle_line_(const std::string &line) {
     int zone = 0;
     if (sscanf(line.c_str(), "+WHZS: %d", &zone) == 1) {
       this->current_zone_ = zone;
-      for (auto &p : this->numeric_sensors_) {
+      for (auto& p : this->numeric_sensors_) {
         if (p.first == XRS_SENSOR_ZONE)
           p.second->publish_state(this->current_zone_);
       }
@@ -984,8 +976,7 @@ void XRSRadioComponent::handle_line_(const std::string &line) {
     int state = 0;
     int timer = 0;
     int n = sscanf(line.c_str(), "+WGPTT: %d,%d", &state, &timer);
-    if (n == 1)
-      timer = 0;
+    if (n == 1) timer = 0;
     this->handle_ptt_notification_(state, timer);
     return;
   }
@@ -1044,21 +1035,20 @@ void XRSRadioComponent::handle_line_(const std::string &line) {
   }
 
   if (!line.empty() && line[0] == '+') {
-    for (auto &p : this->text_sensors_) {
-      if (p.first == XRS_TEXT_LAST_MESSAGE)
-        p.second->publish_state(line);
+    for (auto& p : this->text_sensors_) {
+      if (p.first == XRS_TEXT_LAST_MESSAGE) p.second->publish_state(line);
     }
   }
 }
 
 void XRSRadioComponent::spp_callback_static(esp_spp_cb_event_t event,
-                                            esp_spp_cb_param_t *param) {
+                                            esp_spp_cb_param_t* param) {
   if (XRSRadioComponent::instance_ != nullptr)
     XRSRadioComponent::instance_->on_spp_event_(event, param);
 }
 
 void XRSRadioComponent::on_spp_event_(esp_spp_cb_event_t event,
-                                      esp_spp_cb_param_t *param) {
+                                      esp_spp_cb_param_t* param) {
   switch (event) {
     case ESP_SPP_INIT_EVT: {
       ESP_LOGI(TAG, "ESP_SPP_INIT_EVT");
@@ -1090,12 +1080,11 @@ void XRSRadioComponent::on_spp_event_(esp_spp_cb_event_t event,
     }
 
     case ESP_SPP_DATA_IND_EVT: {
-      const uint8_t *data = param->data_ind.data;
+      const uint8_t* data = param->data_ind.data;
       const uint16_t len = param->data_ind.len;
       for (uint16_t i = 0; i < len; i++) {
         char c = static_cast<char>(data[i]);
-        if (c == '\r')
-          continue;
+        if (c == '\r') continue;
         if (c == '\n') {
           if (!this->rx_buffer_.empty()) {
             std::string line = this->rx_buffer_;
