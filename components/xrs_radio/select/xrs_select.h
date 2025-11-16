@@ -19,6 +19,7 @@ class XRSRadioSelect : public select::Select, public Component {
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::DATA; }
 
+  void refresh_from_parent();
  protected:
   // Called when HA/user changes the selected option
   void control(const std::string &value) override;

@@ -176,8 +176,6 @@ class XRSRadioComponent : public Component {
   // Standard ESPHome lifecycle: dump configuration and current state to the log.
   void dump_config() override;
 
-  void refresh_from_parent() { this->update_options_(); }
-
  protected:
   // Single channel entry from the radio’s channel/squelch table.
   struct ChannelInfo {
