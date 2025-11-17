@@ -446,20 +446,23 @@ void XRSRadioComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "  Location mode: %s", YESNO(this->location_mode_));
   ESP_LOGCONFIG(TAG, "  Location interval: %u ms", this->location_interval_ms_);
 }
+
+
 void XRSRadioComponent::init_bluetooth_() {
   if (this->bt_initialized_)
     return;
 
   esp_err_t ret;
 
-  // Optional: free BLE memory if you don't use BLE at all.
+  // Optional: free BLE memory if you never use BLE
   // ret = esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
   // if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
   //   ESP_LOGW(TAG, "esp_bt_controller_mem_release(BLE) failed: %d", ret);
   // }
 
   esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-  ESP_LOGI(TAG, "BT controller init, cfg.mode=0x%02X", bt_cfg.mode);
+  ESP_LOGI(TAG, "BT controller init, cfg.mode=0x%02X",
+           static_cast<unsigned>(bt_cfg.mode));
 
   ret = esp_bt_controller_init(&bt_cfg);
   if (ret != ESP_OK) {
@@ -467,9 +470,9 @@ void XRSRadioComponent::init_bluetooth_() {
     return;
   }
 
-  // IMPORTANT: enable with the same mode as the controller config,
-  // not a hard-coded ESP_BT_MODE_CLASSIC_BT.
-  ret = esp_bt_controller_enable(bt_cfg.mode);
+  // Cast cfg.mode to esp_bt_mode_t to satisfy the API
+  esp_bt_mode_t mode = static_cast<esp_bt_mode_t>(bt_cfg.mode);
+  ret = esp_bt_controller_enable(mode);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "esp_bt_controller_enable failed: %d", ret);
     return;
@@ -507,7 +510,6 @@ void XRSRadioComponent::init_bluetooth_() {
   this->bt_initialized_ = true;
   ESP_LOGI(TAG, "Bluetooth Classic and SPP initialized");
 }
-
 
 bool XRSRadioComponent::parse_mac_address_(esp_bd_addr_t out) {
   if (this->mac_address_.size() != 17) {
