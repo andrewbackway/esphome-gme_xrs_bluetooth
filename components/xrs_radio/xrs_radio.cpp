@@ -50,12 +50,15 @@ void XRSRadioComponent::set_mac_address(const std::string &mac) {
   cleaned.reserve(12);
   for (char c : mac) {
     if (std::isxdigit(static_cast<unsigned char>(c))) {
-      cleaned.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+      cleaned.push_back(
+          static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
     }
   }
 
   if (cleaned.size() != 12) {
-    ESP_LOGW(TAG, "Invalid MAC address '%s' (normalized length %u, expected 12 hex chars)",
+    ESP_LOGW(TAG,
+             "Invalid MAC address '%s' (normalized length %u, expected 12 hex "
+             "chars)",
              mac.c_str(), static_cast<unsigned>(cleaned.size()));
     return;
   }
@@ -63,15 +66,20 @@ void XRSRadioComponent::set_mac_address(const std::string &mac) {
   for (int i = 0; i < 6; i++) {
     int byte = parse_hex_byte(cleaned, i * 2);
     if (byte < 0) {
-      ESP_LOGW(TAG, "Invalid MAC address '%s' (bad hex at index %d)", mac.c_str(), i);
+      ESP_LOGW(TAG, "Invalid MAC address '%s' (bad hex at index %d)",
+               mac.c_str(), i);
       return;
     }
     this->target_mac_[i] = static_cast<uint8_t>(byte);
   }
 
-  ESP_LOGI(TAG, "XRS target MAC set to %02X:%02X:%02X:%02X:%02X:%02X",
-           this->target_mac_[0], this->target_mac_[1], this->target_mac_[2],
-           this->target_mac_[3], this->target_mac_[4], this->target_mac_[5]);
+  // Normalise and store colon-separated MAC string for logging/parsing
+  this->mac_address_ = esphome::str_sprintf(
+      "%02X:%02X:%02X:%02X:%02X:%02X", this->target_mac_[0],
+      this->target_mac_[1], this->target_mac_[2], this->target_mac_[3],
+      this->target_mac_[4], this->target_mac_[5]);
+
+  ESP_LOGI(TAG, "XRS target MAC set to %s", this->mac_address_.c_str());
 }
 
 void XRSRadioComponent::set_location_sensors(sensor::Sensor* lat,
