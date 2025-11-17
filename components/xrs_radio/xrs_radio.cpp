@@ -538,27 +538,46 @@ bool XRSRadioComponent::parse_mac_address_(esp_bd_addr_t out) {
 }
 
 void XRSRadioComponent::start_connection_() {
-  if (!this->spp_ready_) {
-    ESP_LOGW(TAG, "SPP not ready, cannot connect yet");
+  if (this->connecting_ || this->connected_) {
     return;
   }
-  if (this->mac_address_.empty()) {
-    ESP_LOGE(TAG, "MAC address is not configured, cannot connect");
+
+  if (!this->spp_ready_) {
+    ESP_LOGW(TAG, "SPP not ready yet, cannot start connection");
     return;
   }
 
   esp_bd_addr_t addr;
-  if (!this->parse_mac_address_(addr)) return;
-
-  ESP_LOGI(TAG, "Connecting to XRS radio at %s", this->mac_address_.c_str());
-  esp_err_t ret =
-      esp_spp_connect(ESP_SPP_SEC_NONE, ESP_SPP_ROLE_MASTER, 0, addr);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "esp_spp_connect failed: %d", ret);
+  if (!this->parse_mac_address_(addr)) {
+    ESP_LOGE(TAG, "Cannot start connection: invalid MAC address");
     return;
   }
+
+  // We now assume RFCOMM channel 1 for the XRS SPP service.
+  // Channel 0 was causing "invalid SCN" from RFCOMM.
+  constexpr uint8_t kXrsRfcommChannel = 1;
+
+  ESP_LOGI(TAG,
+           "Connecting to XRS radio at %s on RFCOMM channel %u",
+           this->mac_address_str_.c_str(),
+           static_cast<unsigned>(kXrsRfcommChannel));
+
   this->connecting_ = true;
+  this->reconnect_scheduled_ = false;  // we're actively connecting now
+
+  esp_err_t ret = esp_spp_connect(
+      ESP_SPP_SEC_NONE,              // or ESP_SPP_SEC_AUTHENTICATE if needed later
+      ESP_SPP_ROLE_MASTER,
+      kXrsRfcommChannel,             // <- was 0, now 1
+      addr);
+
+  if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "esp_spp_connect failed: %d", static_cast<int>(ret));
+    this->connecting_ = false;
+    this->schedule_reconnect_();
+  }
 }
+
 
 void XRSRadioComponent::close_connection_() {
   if (this->connected_ && this->spp_handle_ != 0) {
